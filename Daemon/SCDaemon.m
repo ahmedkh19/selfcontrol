@@ -64,6 +64,11 @@ float const INACTIVITY_LIMIT_SECS = 60 * 2; // 2 minutes
     // to start the block
     if ([SCBlockUtilities anyBlockIsRunning] || [SCBlockUtilities blockRulesFoundOnSystem]) {
         [self startCheckupTimer];
+        // Mid-block daemon restart (reboot, crash, reinstall): the checkpoint
+        // timer was only armed inside startBlock, so without this it would
+        // never run again and SCBlockClock.elapsedSecondsAccumulated would
+        // freeze at its last persisted value.
+        [self startCheckpointTimer];
     }
     
     [self startInactivityTimer];

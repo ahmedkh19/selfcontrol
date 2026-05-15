@@ -31,7 +31,14 @@ static NSString* sBootUUIDOverride = nil;
     if (sysctlbyname("kern.boottime", &boottime, &size, NULL, 0) != 0) {
         return @"unknown";
     }
-    return [NSString stringWithFormat: @"%ld.%d", (long)boottime.tv_sec, boottime.tv_usec];
+    // Use only tv_sec. kern.boottime's tv_usec drifts within a single boot
+    // session because the kernel updates it on every NTP / adjtime() clock
+    // correction (the relationship "now - boottime = uptime" is maintained).
+    // Including usec triggers false cross-boot detection mid-block, freezing
+    // SCBlockClock's elapsed counter. tv_sec only changes on real reboot or
+    // on a clock jump ≥1s — both of which we *do* want to treat as a boot-
+    // level discontinuity.
+    return [NSString stringWithFormat: @"%ld", (long)boottime.tv_sec];
 }
 
 #ifdef DEBUG
