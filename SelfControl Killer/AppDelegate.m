@@ -10,6 +10,7 @@
 #import "SCSettings.h"
 #import "SCMiscUtilities.h"
 #import "SCUIUtilities.h"
+#import "SCBlockClock.h"
 
 @interface AppDelegate ()
 
@@ -27,6 +28,26 @@
 }
 
 - (IBAction)killButtonClicked:(id)sender {
+    // SelfControl Killer is a *recovery* tool. If SCBlockClock says the block
+    // is still active and unelapsed, refuse here — before prompting for admin
+    // auth — so the user gets a clear message instead of the generic
+    // "couldn't clear the block" failure that the helper's EX_TEMPFAIL would
+    // otherwise surface as.
+    NSTimeInterval duration = [SCBlockClock blockDurationSeconds];
+    if (duration > 0 && ![SCBlockClock blockDurationHasElapsed]) {
+        NSTimeInterval remaining = [SCBlockClock remainingSecondsForCurrentBlock];
+        NSAlert* alert = [[NSAlert alloc] init];
+        alert.messageText = NSLocalizedString(@"Your block is still active.",
+                                              @"Killer refusal heading");
+        alert.informativeText = [NSString stringWithFormat:
+            NSLocalizedString(@"SelfControl Killer is a recovery tool — it only clears blocks that have already finished. About %d minute(s) remain on your current block.",
+                              @"Killer refusal body"),
+            (int)ceil(remaining / 60.0)];
+        [alert addButtonWithTitle: NSLocalizedString(@"OK", nil)];
+        [alert runModal];
+        return;
+    }
+
 	AuthorizationRef authorizationRef;
 	char* helperToolPath = [self selfControlKillerHelperToolPathUTF8String];
 	NSUInteger helperToolPathSize = strlen(helperToolPath);
